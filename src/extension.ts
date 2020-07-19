@@ -27,7 +27,11 @@ type RestLensRequestCache = {
   expires?: number
 }
 
-class RestCodeLensProvider implements vscode.CodeLensProvider<vscode.CodeLens> {
+interface RestCodeLens extends vscode.CodeLens {
+  match: RestLensMatch
+}
+
+class RestCodeLensProvider implements vscode.CodeLensProvider<RestCodeLens> {
   private emitter = new vscode.EventEmitter<void>()
   private matchCache = new WeakMap<vscode.TextDocument, RestLensMatchCache>()
   private requestCache = new Map<string, RestLensRequestCache>()
@@ -83,13 +87,27 @@ class RestCodeLensProvider implements vscode.CodeLensProvider<vscode.CodeLens> {
       }
     }
 
-    return matchCache.matches.map((m) => this.getCodeLens(m))
+    return matchCache.matches.map((m) => this.getCodeLens(m, false))
   }
 
-  private getCodeLens(matchItem: RestLensMatch): vscode.CodeLens {
+  resolveCodeLens(codeLens: RestCodeLens): RestCodeLens {
+    return this.getCodeLens(codeLens.match, true)
+  }
+
+  private getCodeLens(
+    matchItem: RestLensMatch,
+    resolveImmediately: boolean,
+  ): RestCodeLens {
     const key = matchItem.providerId + ':' + matchItem.requestUrl
     let lens = this.requestCache.get(key)
     if (!lens || (lens.expires && Date.now() > lens.expires)) {
+      if (!resolveImmediately) {
+        return {
+          isResolved: false,
+          match: matchItem,
+          range: matchItem.range,
+        }
+      }
       lens = {
         command: {
           title: `(${matchItem.providerId})`,
@@ -127,6 +145,7 @@ class RestCodeLensProvider implements vscode.CodeLensProvider<vscode.CodeLens> {
       isResolved: true,
       command: lens.command,
       range: matchItem.range,
+      match: matchItem,
     }
   }
 }
