@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { setTimeout } from 'timers'
 import * as vscode from 'vscode'
 
@@ -33,8 +34,8 @@ interface RestCodeLens extends vscode.CodeLens {
 
 class RestCodeLensProvider implements vscode.CodeLensProvider<RestCodeLens> {
   private emitter = new vscode.EventEmitter<void>()
-  private matchCache = new WeakMap<vscode.TextDocument, RestLensMatchCache>()
-  private requestCache = new Map<string, RestLensRequestCache>()
+  private matchCache = createMatchCache()
+  private requestCache = createRequestCache()
   private gonnaUpdate = false
 
   onDidChangeCodeLenses = this.emitter.event
@@ -110,25 +111,33 @@ class RestCodeLensProvider implements vscode.CodeLensProvider<RestCodeLens> {
       }
       lens = {
         command: {
-          title: `(${matchItem.providerId})`,
-          command: 'restLens.open',
-          arguments: [],
+          title: `(loading ${matchItem.providerId}…)`,
+          command: 'restLens.pending',
+          arguments: [matchItem.providerId, matchItem.requestUrl],
         },
       }
       this.requestCache.set(key, lens)
       ;(async () => {
         try {
-          await new Promise((resolve) => setTimeout(resolve, 3000))
-          lens.command = {
-            title: `(resolved => ${matchItem.requestUrl})`,
-            command: 'restLens.open',
-            arguments: [],
-          }
+          const { data } = await axios.get(matchItem.requestUrl, {
+            timeout: 15000,
+          })
+          const title =
+            data.title || `${matchItem.providerId} did not provide a title`
+          const command = data.command || 'restLens.open'
+          const args = Array.isArray(data.arguments)
+            ? data.arguments
+            : [data.url]
+          lens.command = { title, command, arguments: args }
         } catch (error) {
           lens.command = {
-            title: `(error => ${matchItem.providerId})`,
-            command: 'restLens.open',
-            arguments: [],
+            title: `[${matchItem.providerId}] ${error}`,
+            command: 'restLens.error',
+            arguments: [
+              matchItem.providerId,
+              matchItem.requestUrl,
+              String(error),
+            ],
           }
         } finally {
           if (!this.gonnaUpdate) {
@@ -148,6 +157,21 @@ class RestCodeLensProvider implements vscode.CodeLensProvider<RestCodeLens> {
       match: matchItem,
     }
   }
+
+  clearResponseCache() {
+    this.matchCache = createMatchCache()
+    this.requestCache = createRequestCache()
+    this.emitter.fire()
+    vscode.window.showInformationMessage('Response cache has been cleared')
+  }
+}
+
+function createRequestCache() {
+  return new Map<string, RestLensRequestCache>()
+}
+
+function createMatchCache() {
+  return new WeakMap<vscode.TextDocument, RestLensMatchCache>()
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -162,10 +186,49 @@ export function activate(context: vscode.ExtensionContext) {
       ],
       provider,
     ),
-  )
-  context.subscriptions.push(
-    vscode.commands.registerCommand('restLens.open', (arg) => {
-      vscode.window.showInformationMessage('Hello World from rest-lens! ' + arg)
+    vscode.commands.registerCommand(
+      'restLens.pending',
+      (providerId, requestUrl) => {
+        vscode.window
+          .showInformationMessage(
+            `REST lens is loading code lens for ${providerId}`,
+            'Copy URL',
+            'Open URL',
+          )
+          .then((r) => {
+            if (r === 'Open URL') {
+              vscode.env.openExternal(vscode.Uri.parse(requestUrl))
+            }
+            if (r === 'Copy URL') {
+              vscode.env.clipboard.writeText(requestUrl)
+            }
+          })
+      },
+    ),
+    vscode.commands.registerCommand(
+      'restLens.error',
+      (providerId, requestUrl, errorMessage) => {
+        vscode.window
+          .showInformationMessage(
+            `REST lens had trouble loading code lens for ${providerId}: ${errorMessage}`,
+            'Copy URL',
+            'Open URL',
+          )
+          .then((r) => {
+            if (r === 'Open URL') {
+              vscode.env.openExternal(vscode.Uri.parse(requestUrl))
+            }
+            if (r === 'Copy URL') {
+              vscode.env.clipboard.writeText(requestUrl)
+            }
+          })
+      },
+    ),
+    vscode.commands.registerCommand('restLens.open', (url) => {
+      vscode.env.openExternal(vscode.Uri.parse(url))
+    }),
+    vscode.commands.registerCommand('restLens.clearResponseCache', () => {
+      provider.clearResponseCache()
     }),
   )
 }

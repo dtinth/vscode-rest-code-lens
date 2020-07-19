@@ -1,6 +1,6 @@
 {
   "name": "rest-lens",
-  "displayName": "rest-lens",
+  "displayName": "REST Lens",
   "description": "An advanced VS Code extension that calls HTTP endpoint when text matches a regular expression and displays the result as code lenses",
   "version": "0.0.1",
   "engines": {
@@ -23,6 +23,11 @@
           "markdownDescription": "An object of REST Lens providers. Key is the provider ID (for diagnostics). Each entry is an object with these properties:\n\n- `pattern`: A regular expression pattern\n- `url`: An HTTP endpoint to return code lens"
         }
       }
+    },
+    "commands": {
+      "category": "REST Lens",
+      "title": "Clear response cache",
+      "command": "restLens.clearResponseCache"
     }
   },
   "scripts": {
