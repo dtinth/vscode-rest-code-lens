@@ -53,5 +53,15 @@
   },
   "dependencies": {
     "axios": "^0.19.2"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dtinth/vscode-rest-code-lens.git"
+  },
+  "author": "Thai Pangsakulyanont <org.yi.dttvb@gmail.com> (http://dt.in.th/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dtinth/vscode-rest-code-lens/issues"
+  },
+  "homepage": "https://github.com/dtinth/vscode-rest-code-lens#readme"
 }

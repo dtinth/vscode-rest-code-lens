@@ -1,65 +1,71 @@
 # rest-lens README
 
-This is the README for your extension "rest-lens". After writing up a brief description, we recommend including the following sections.
+An advanced VS Code extension that calls HTTP endpoint when text matches a regular expression and displays the result as code lenses.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+**Easily build programmable code lenses using just a simple JSON endpoint.**
 
-For example if there is an image subfolder under your extension project workspace:
+Given the VS Code settings:
 
-\!\[feature X\]\(images/feature-x.png\)
+```jsonc
+  "restLens.providers": {
+    "github": {
+      "pattern": "https://github\\.com/[^/]+/[^/]+/(?:issues|pull)/\\d+",
+      "url": "http://localhost:2323/info"
+    }
+  }
+```
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+…and an endpoint (example here implemented with Node.js):
 
-## Requirements
+```js
+const express = require('express')
+const app = express()
+const got = require('got')
+const metascraper = require('metascraper')([require('metascraper-title')()])
+app.get('/info', async (req, res, next) => {
+  try {
+    const targetUrl = req.query.m[0]
+    const { body: html, url } = await got(targetUrl)
+    const metadata = await metascraper({ html, url })
+    res.json({ title: metadata.title || url, url: targetUrl })
+  } catch (error) {
+    next(error)
+  }
+})
+app.listen(+process.env.PORT || 2323)
+```
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+This will display GitHub Issue and Pull Request titles as code lenses.
+
+![Screenshot](./images/screenshot.png)
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
 This extension contributes the following settings:
 
-* `myExtension.enable`: enable/disable this extension
-* `myExtension.thing`: set to `blah` to do something
+- `restLens.providers` An object of code lens providers, keyed by its ID (can be arbitrary string and is only used for informational and diagnostics purposes).
+  Each code lens provider will be an object with the following properties:
 
-## Known Issues
+  - `pattern` The regular expression to match against the document.
+  - `url` The URL to invoke
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+## HTTP Endpoint Specification
 
-## Release Notes
+### Request
 
-Users appreciate release notes as you update your extension.
+The extension will make a GET request to the specified URL with the RegExp match as GET query parameter named `m[]`.
 
-### 1.0.0
+- `m[0]` The matched text
+- `m[n]` The capture group matches
 
-Initial release of ...
+### Response
 
-### 1.0.1
+It should return a JSON object with the following properties:
 
-Fixed issue #.
+- `title` The title to display on the code lens
+- `url` The URL to open when clicking on the code lens
+- `command`+`arguments` The VS Code command to execute when clicking on the code lens, overriding `url`
 
-### 1.1.0
-
-Added features X, Y, and Z.
-
------------------------------------------------------------------------------------------------------------
-
-## Working with Markdown
-
-**Note:** You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+CMD+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux) or `Cmd+Space` (macOS) to see a list of Markdown snippets
-
-### For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+The response will be cached throughout the session until the "Clear response cache" command is invoked.
