@@ -151,6 +151,7 @@ class RestCodeLensProvider implements vscode.CodeLensProvider<RestCodeLens> {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+  const provider = new RestCodeLensProvider()
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider(
       [
@@ -159,7 +160,7 @@ export function activate(context: vscode.ExtensionContext) {
         { scheme: 'vsls' },
         { scheme: 'untitled' },
       ],
-      new RestCodeLensProvider(),
+      provider,
     ),
   )
   context.subscriptions.push(
