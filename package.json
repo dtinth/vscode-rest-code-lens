@@ -1,7 +1,7 @@
 {
   "name": "rest-lens",
   "displayName": "rest-lens",
-  "description": "A code lens provider that makes an API call to an HTTP endpoint when text matches a regular expression",
+  "description": "An advanced VS Code extension that calls HTTP endpoint when text matches a regular expression and displays the result as code lenses",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.47.0"
